@@ -2,25 +2,17 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
-warnings.filterwarnings('ignore')
-from scipy.ndimage import gaussian_filter
-
 import os
 import tkinter as tk
+from scipy.ndimage import gaussian_filter
 from tkinter import filedialog
-
 from scipy.signal import find_peaks, peak_widths
-
 
 plotToggle = []
 direction = [0, 1]
-
-
-
-
+warnings.filterwarnings('ignore')
 root = tk.Tk()
 root.withdraw()
-
 path2img = filedialog.askopenfilename(initialdir=os.getcwd(), title='')
 path2save = os.path.basename(path2img)[:-4] + '_save.jpg'
 
