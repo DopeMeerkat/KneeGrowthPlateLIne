@@ -1,35 +1,24 @@
 import sys
 import os
-import json
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psd_tools import PSDImage
-from PIL import Image, ImageDraw
+from PIL import Image
+from drawLine import *
 
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 
 
 Image.MAX_IMAGE_PIXELS = 200000000
-IMAGE_HEIGHT = 1024 
-IMAGE_WIDTH = 1024  
-JSON_FILENAME = 'RoI_coordinates.json'
-MIN_PIXELS = 128
-
-REFERENCE_SCALE = 1
-
+IMAGE_HEIGHT = 1100
+IMAGE_WIDTH = 800
 imageNames = ['cfo','ap','dapi', 'trap', 'ac', 'cal', 'am']
 
-class Line():
-    def __init__(self, name, line):
-        self.name = name # name of stain
-        self.line = line # npy ndarray line
-
-
-class ROI():
-    def __init__(self, x, y, w, h):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas, self).__init__(fig)
 
 class GraphicView(QtWidgets.QGraphicsView):
     rectChanged = QtCore.pyqtSignal(QtCore.QRect)
@@ -44,7 +33,6 @@ class GraphicView(QtWidgets.QGraphicsView):
         self.scene.setSceneRect(QtCore.QRectF(0,0,IMAGE_WIDTH, IMAGE_HEIGHT))
         self.setScene(self.scene)
         self.selectedRegion = {'x':0,'y':0,'w':-1,'h':-1}
-        self.ROIList = []
         self.graphicsPixmapItem = None
         self.minPixels = 0
 
@@ -68,112 +56,225 @@ class GraphicView(QtWidgets.QGraphicsView):
         QtWidgets.QGraphicsView.mouseReleaseEvent(self, event)
         self.selectedRegion['x'] = self.rubberBand.geometry().x()
         self.selectedRegion['y'] = self.rubberBand.geometry().y()
-
-
         self.selectedRegion['w'] = self.rubberBand.geometry().width()
         self.selectedRegion['h'] = self.rubberBand.geometry().height()
 
 
-        self.scene.addRect(self.selectedRegion['x'],self.selectedRegion['y'],self.selectedRegion['w'],self.selectedRegion['h'], pen = QtGui.QPen(QtCore.Qt.red, 4))
-        self.ROIList.append(ROI(self.selectedRegion['x'],self.selectedRegion['y'],self.selectedRegion['w'],self.selectedRegion['h']))
-        self.rubberBand.hide()
+        # self.scene.addRect(self.selectedRegion['x'],self.selectedRegion['y'],self.selectedRegion['w'],self.selectedRegion['h'], pen = QtGui.QPen(QtCore.Qt.red, 4))
+        # self.ROIList.append(ROI(self.selectedRegion['x'],self.selectedRegion['y'],self.selectedRegion['w'],self.selectedRegion['h']))
+        # self.rubberBand.hide()
         # print('mouse released', self.selectedRegion)
 
 class ImageLoader(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
-        layout = QtWidgets.QGridLayout(self)
+        mainLayout = QtWidgets.QGridLayout(self)
 
         # self.label = QtWidgets.QLabel()
         self.label = GraphicView()
         self.label.setAlignment(QtCore.Qt.AlignTop)
         self.label.setAlignment(QtCore.Qt.AlignLeft)
-        layout.addWidget(self.label, 1, 0, 1, 4)
+        mainLayout.addWidget(self.label, 1, 0, 1, 4)
         self.label.setMinimumSize(IMAGE_WIDTH, IMAGE_HEIGHT)
         self.label.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.label.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # self.label.ensureVisible(0,0,IMAGE_WIDTH, IMAGE_HEIGHT, xMargin = 0, yMargin = 0)
                                                         
-        self.setWindowTitle('RoI selection')
+        self.setWindowTitle('Load an Image')
 
         self.label.setAlignment(QtCore.Qt.AlignCenter)
 
         self.loadImageButton = QtWidgets.QPushButton('Load Image')
-        layout.addWidget(self.loadImageButton, 0, 0, 1, 1)
+        mainLayout.addWidget(self.loadImageButton, 0, 0, 1, 1)
 
-        self.clearButton = QtWidgets.QPushButton('Clear Canvas')
-        layout.addWidget(self.clearButton, 0, 1, 1, 1)
+        # self.clearButton = QtWidgets.QPushButton('Clear Canvas')
+        # mainLayout.addWidget(self.clearButton, 0, 1, 1, 1)
 
-        self.undoButton = QtWidgets.QPushButton('Undo')
-        layout.addWidget(self.undoButton, 0, 2, 1, 1)
+        # self.undoButton = QtWidgets.QPushButton('Undo')
+        # mainLayout.addWidget(self.undoButton, 0, 2, 1, 1)
 
-        self.saveAllROIButton = QtWidgets.QPushButton('Save and Crop All')
-        layout.addWidget(self.saveAllROIButton, 0, 3, 1, 1)
+        # self.saveAllROIButton = QtWidgets.QPushButton('Save and Crop All')
+        # mainLayout.addWidget(self.saveAllROIButton, 0, 3, 1, 1)
 
-        # self.nextImageButton = QtWidgets.QPushButton('>')
-        # layout.addWidget(self.nextImageButton, 1, 3)
-        # self.nextImageButton.setMinimumSize(20,IMAGE_HEIGHT)
+        self.nextImageButton = QtWidgets.QPushButton('>')
+        mainLayout.addWidget(self.nextImageButton, 0, 2)
+
+        self.frame = QtWidgets.QFrame(self)
+        self.frame.setMinimumSize(int(IMAGE_WIDTH/2), IMAGE_HEIGHT)
+        self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.frame.setLineWidth(3)
+
+        controlLayout = QtWidgets.QGridLayout(self.frame)
+
+        self.sectionButton = QtWidgets.QPushButton('Select Section', self.frame)
+        controlLayout.addWidget(self.sectionButton, 1, 1, 1, 1)
+
+
+        maskFrame = QtWidgets.QFrame(self.frame)
+        maskLayout = QtWidgets.QGridLayout(maskFrame)
+
+
+        self.blurKSizeText = QtWidgets.QLabel(self.frame)
+        self.blurKSizeText.setText('Gaussian Blur Kernel Size')
+        maskLayout.addWidget(self.blurKSizeText, 0, 0)
+
+        self.blurKSize = QtWidgets.QLineEdit(self.frame)
+        self.blurKSize.setText('7')
+        maskLayout.addWidget(self.blurKSize, 1, 0, 2, 1)
+
+        self.blurIterText = QtWidgets.QLabel(self.frame)
+        self.blurIterText.setText('Gaussian Blur Iterations')
+        maskLayout.addWidget(self.blurIterText, 0, 1)
+
+        self.blurIter = QtWidgets.QLineEdit(self.frame)
+        self.blurIter.setText('9')
+        maskLayout.addWidget(self.blurIter, 1, 1, 2, 1)
+
+        self.sobelKSizeText = QtWidgets.QLabel(self.frame)
+        self.sobelKSizeText.setText('Sobel Kernel Size')
+        maskLayout.addWidget(self.sobelKSizeText, 0, 2)
+
+        self.sobelKSize = QtWidgets.QLineEdit(self.frame)
+        self.sobelKSize.setText('3')
+        maskLayout.addWidget(self.sobelKSize, 1, 2, 2, 1)
+
+        controlLayout.addWidget(maskFrame, 2, 0, 1, 1)
+
+        self.maskButton = QtWidgets.QPushButton('Generate Mask', self.frame)
+        controlLayout.addWidget(self.maskButton, 2, 1, 1, 1)
+
+        self.thresholdLineEdit = QtWidgets.QLineEdit(self.frame)
+        self.thresholdLineEdit.setText('200')
+        controlLayout.addWidget(self.thresholdLineEdit, 3, 0, 1, 1)
+
+        self.thresholdButton = QtWidgets.QPushButton('Threshold', self.frame)
+        controlLayout.addWidget(self.thresholdButton, 3, 1, 1, 1)
+
+
+        DEFrame = QtWidgets.QFrame(self.frame)
+        DELayout = QtWidgets.QGridLayout(DEFrame)
+        self.dilKernelText = QtWidgets.QLabel(self.frame)
+        self.dilKernelText.setText('Dilation X')
+        DELayout.addWidget(self.dilKernelText, 0, 0)
+        self.eroKernelText = QtWidgets.QLabel(self.frame)
+        self.eroKernelText.setText('Dilation Y')
+        DELayout.addWidget(self.eroKernelText, 0, 1)
+        self.dilIterText = QtWidgets.QLabel(self.frame)
+        self.dilIterText.setText('Dilation Iterations')
+        DELayout.addWidget(self.dilIterText, 0, 2)
+        self.eroIterText = QtWidgets.QLabel(self.frame)
+        self.eroIterText.setText('Erosion Iterations')
+        DELayout.addWidget(self.eroIterText, 0, 3)
+        
+        self.dilKernelX = QtWidgets.QLineEdit(self.frame)
+        self.dilKernelX.setText('7')
+        DELayout.addWidget(self.dilKernelX, 1, 0, 2, 1)
+        self.dilKernelY = QtWidgets.QLineEdit(self.frame)
+        self.dilKernelY.setText('4')
+        DELayout.addWidget(self.dilKernelY, 1, 1, 2, 1)
+        self.dilIter = QtWidgets.QLineEdit(self.frame)
+        self.dilIter.setText('3')
+        DELayout.addWidget(self.dilIter, 1, 2, 2, 1)
+        self.eroIter = QtWidgets.QLineEdit(self.frame)
+        self.eroIter.setText('2')
+        DELayout.addWidget(self.eroIter, 1, 3, 2, 1)
+        controlLayout.addWidget(DEFrame, 4, 0, 1, 1)
+
+        self.morphButton = QtWidgets.QPushButton('Dilation/Erosion', self.frame)
+        controlLayout.addWidget(self.morphButton, 4, 1, 1, 1)
+
+        self.contourCombo = QtWidgets.QComboBox(self.frame)
+        self.contourCombo.addItems(['Largest', 'Second Largest'])
+        controlLayout.addWidget(self.contourCombo, 5, 0, 1, 1)
+
+        self.contourButton = QtWidgets.QPushButton('Countour', self.frame)
+        controlLayout.addWidget(self.contourButton, 5, 1, 1, 1)
+
+        self.gaussianLineEdit = QtWidgets.QLineEdit(self.frame)
+        self.gaussianLineEdit.setText('30')
+        controlLayout.addWidget(self.gaussianLineEdit, 6, 0, 1, 1)
+
+        self.gaussianButton = QtWidgets.QPushButton('Gaussian', self.frame)
+        controlLayout.addWidget(self.gaussianButton, 6, 1, 1, 1)
+
+        self.drawLineCombo = QtWidgets.QComboBox(self.frame)
+        self.drawLineCombo.addItems(['Up', 'Down'])
+        controlLayout.addWidget(self.drawLineCombo, 7, 0, 1, 1)
+
+        self.drawLineButton = QtWidgets.QPushButton('Draw Line', self.frame)
+        controlLayout.addWidget(self.drawLineButton, 7, 1, 1, 1)
+
+
+        lineInfoFrame = QtWidgets.QFrame(self.frame)
+        lineInfoLayout = QtWidgets.QGridLayout(lineInfoFrame)
+
+        self.lineColorCombo = QtWidgets.QComboBox(self.frame)
+        self.lineColorCombo.addItems(['Red', 'Green', 'Blue'])
+        lineInfoLayout.addWidget(self.lineColorCombo, 0, 0, 1, 1)
+
+        self.nameLineEdit = QtWidgets.QLineEdit(self.frame)
+        self.nameLineEdit.setText('Name of Line')
+        lineInfoLayout.addWidget(self.nameLineEdit, 0, 1, 1, 3)
+        controlLayout.addWidget(lineInfoFrame, 8, 0, 1, 1)
+
+
+        self.saveLineButton = QtWidgets.QPushButton('Save Line', self.frame)
+        controlLayout.addWidget(self.saveLineButton, 8, 1, 1, 1)
+
+        mainLayout.addWidget(self.frame, 1, 4, 1, 1)
+
+
+        self.figure = Figure()
+        self.canvas = MplCanvas(self)
+
+        controlLayout.addWidget(self.canvas, 0, 0, 1, 2)
+
 
 
         self.loadImageButton.clicked.connect(self.loadImage)
-        # self.nextImageButton.clicked.connect(self.nextImage)
-        self.clearButton.clicked.connect(self.clearScene)
-        self.undoButton.clicked.connect(self.undo)
-        self.saveAllROIButton.clicked.connect(self.saveROI)
+        self.nextImageButton.clicked.connect(self.nextImage)
+        # self.clearButton.clicked.connect(self.clearScene)
+        self.sectionButton.clicked.connect(self.selectSection)
+        self.maskButton.clicked.connect(self.generateMask)
+        self.thresholdButton.clicked.connect(self.threshold)
+        self.morphButton.clicked.connect(self.morph)
+        self.contourButton.clicked.connect(self.contour)
+        self.gaussianButton.clicked.connect(self.gaussian)
+        self.drawLineButton.clicked.connect(self.drawLine)
+        self.saveLineButton.clicked.connect(self.saveLine)
         
 
         self.filename = ''
-        self.psdName = ''
         self.baseName = ''
         self.dirname = ''
         self.dirIterator = None
         self.fileList = []
-        self.pixmap = QtGui.QPixmap()
-    
-    def loadJSON(self, json_path):
-        if os.path.exists(json_path):
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-            # print(data)
-            self.label.ROIList = []
-            imagePath = os.path.join(os.path.dirname(json_path), self.baseName + '_A.jpg')
-            # print(imagePath)
-            im = Image.open(imagePath)
+        self.pixmap = None
 
-            width, _ = im.size
-            ratio = self.pixmap.width() / width
-            for roi in data['annotations']:
-                # print(roi)
-                self.label.ROIList.append(ROI(int(roi['x_left'] * ratio), 
-                                              int(roi['y_up'] * ratio), 
-                                              int((roi['x_right'] - roi['x_left']) * ratio), 
-                                              int((roi['y_low'] - roi['y_up'])* ratio)))
-            # print(self.label.ROIList)
-
-            # 
-            if self.label.ROIList: #if not empty
-                for roi in self.label.ROIList:
-                    self.label.scene.addRect(roi.x, roi.y, roi.w, roi.h, pen = QtGui.QPen(QtCore.Qt.red, 4))
+        self.image = None
 
 
     def loadImage(self):
         self.clearScene()
-        # self.filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-        #     self, 'Select Image', '', 'Image Files (*.png *.jpg *.jpeg *.psd)')
         self.filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, 'Select Image', '', 'Image Files (*.psd)')
-        self.psdName = self.filename
         self.baseName = os.path.basename(self.filename)[:-4]
         self.dirname = os.path.dirname(self.filename) 
         layersDir = os.path.join(self.dirname, self.baseName + '_Layers')
-        otherDir = os.path.join(layersDir, 'Other Images')
+        otherDir = os.path.join(layersDir, 'OtherImages')
+        lineDataDir = os.path.join(layersDir, 'LineData')
+        lineImageDir = os.path.join(layersDir, 'LineImages')
+        self.dirname = layersDir
 
-        # newFilename =  self.baseName + '_A.jpg'
-        
-        if not os.path.exists(layersDir):
+        if not os.path.exists(layersDir) and layersDir != '_Layers':
             os.mkdir(layersDir)
             if not os.path.exists(otherDir):
                 os.mkdir(otherDir)
+            if not os.path.exists(lineDataDir):
+                os.mkdir(lineDataDir)
+            if not os.path.exists(lineImageDir):
+                os.mkdir(lineImageDir)
+
             psd = PSDImage.open(self.filename)
             # psd.composite().convert('RGB').save(os.path.join(layersDir, newFilename), format = 'JPEG', dpi = (300,300))
             for layer in psd:
@@ -182,169 +283,137 @@ class ImageLoader(QtWidgets.QWidget):
                     layer_image = layer.composite()
                     layer_image = layer_image.convert('RGB')
                     layer_image.save(os.path.join(layersDir, self.baseName + '_%s.jpg' % layer.name), format = 'JPEG', dpi = (300,300))
+
                 else:
                     layer_image = layer.composite()
                     layer_image = layer_image.convert('RGB')
                     layer_image.save(os.path.join(otherDir, self.baseName + '_%s.jpg' % layer.name), format = 'JPEG', dpi = (300,300))
 
-        # self.filename = os.path.join(layersDir, newFilename)
-        # if self.filename:
-        #     self.setWindowTitle(self.filename)
-        #     self.pixmap = QtGui.QPixmap(self.filename).scaled(self.label.size(), QtCore.Qt.KeepAspectRatio)
-        #     if self.pixmap.isNull():
-        #         return
-        #     # self.label.setPixmap(self.pixmap)
-        #     im = Image.open(self.filename)
-        #     width, _ = im.size
-        #     ratio = self.pixmap.width() / width
-        #     # print(ratio)
-        #     self.label.minPixels = MIN_PIXELS * ratio
+        self.fileList = [os.path.join(layersDir, f) for f in os.listdir(layersDir) if os.path.isfile(os.path.join(layersDir, f)) and f != '.DS_Store']
 
-        #     self.label.graphicsPixmapItem = QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap(self.pixmap))
-        #     self.label.scene.addItem(self.label.graphicsPixmapItem)
+        self.fileList.sort()
+        self.dirIterator = iter(self.fileList)
+        self.filename = next(self.dirIterator)
 
+        # print(self.fileList)
+        if self.filename:
+            self.setWindowTitle(os.path.basename(self.filename)[:-4])
+            self.pixmap = QtGui.QPixmap(self.filename).scaled(self.label.size(), QtCore.Qt.KeepAspectRatio)
+            if self.pixmap.isNull():
+                return
+            self.label.graphicsPixmapItem = QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap(self.pixmap))
+            self.label.scene.addItem(self.label.graphicsPixmapItem)
 
-        #     dirpath = os.path.dirname(self.filename)
-        #     self.fileList = []
-        #     for f in os.listdir(dirpath):
-        #         fpath = os.path.join(dirpath, f)
-        #         if os.path.isfile(fpath) and f.endswith(('.png', '.jpg', '.jpeg')):
-        #             self.fileList.append(fpath)
+            self.image = LineImage(self.filename)
 
+    def nextImage(self):
+        if self.fileList:
+            try:
+                self.filename = next(self.dirIterator)
+                self.setWindowTitle(os.path.basename(self.filename)[:-4])
+                self.pixmap = QtGui.QPixmap(self.filename).scaled(self.label.size(), 
+                    QtCore.Qt.KeepAspectRatio)
+                if self.pixmap.isNull():
+                    self.fileList.remove(self.filename)
+                    self.nextImage()
+                else:
+                    self.clearScene()
 
-
-        #     self.fileList.sort()
-        #     self.dirIterator = iter(self.fileList)
-          
-        #     while True:
-        #         # cycle through the iterator until the current file is found
-        #         if next(self.dirIterator) == self.filename:
-        #             break
-
+                self.image = LineImage(self.filename)
+            except:
+                # the iterator has finished, restart it
+                self.dirIterator = iter(self.fileList)
+                self.nextImage()
+        else:
+            # no file list found, load an image
+            self.loadImage()
 
     def clearScene(self):
-        # print(self.label.ROIList)
-        self.label.scene.clear()
-        self.label.ROIList = []
-        self.label.graphicsPixmapItem = QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap(self.pixmap))
-        self.label.scene.addItem(self.label.graphicsPixmapItem)
-        # print(self.label.ROIList)
-
-    def undo(self):
-        # print(self.label.ROIList)
         self.label.scene.clear()
         self.label.graphicsPixmapItem = QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap(self.pixmap))
         self.label.scene.addItem(self.label.graphicsPixmapItem)
-        if self.label.ROIList: #if not empty
-            self.label.ROIList.pop()
-            # print(self.label.ROIList)
-            for roi in self.label.ROIList:
-                # print(roi.x, roi.y)
-                self.label.scene.addRect(roi.x, roi.y, roi.w, roi.h, pen = QtGui.QPen(QtCore.Qt.red, 4))
+        # print(self.label.ROIList)
+    
+    def updateVisual(self):
+        self.canvas.axes.cla()
+        self.canvas.axes.imshow(self.image.tempImg, 'gray')
+        self.canvas.draw()
 
 
-    def save_region_and_update_json(self, x_left, y_up, width, height, json_path):
-        # Check if JSON file exists
-        if os.path.exists(json_path):
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-        else:
-            data = {'annotations': []}
-
-        # Get the ID
-        if data['annotations']:
-            id = max([item['id'] for item in data['annotations']]) + 1
-        else:
-            id = 1
-
-        # # Save the selected region as an image file
-        # region_image_path = f'patches/{id}.jpg'
-        # cv2.imwrite(region_image_path, selected_region)
-
-        # Create the new annotation
-        new_annotation = {
-            'id': id,
-            'x_left': x_left,
-            'x_right': x_left + width,
-            'y_up': y_up,
-            'y_low': y_up + height
-        }
-
-        data['annotations'].append(new_annotation)
-
-        # Save the updated JSON file
-        with open(json_path, 'w') as f:
-            json.dump(data, f, indent=4)
-
-    def saveROI(self):
-        # dir = QtWidgets.QFileDialog.getExistingDirectory(self, 'Open Directory', '.', QtWidgets.QFileDialog.ShowDirsOnly)
-        dir = self.dirname    
-
-        imagePath = os.path.join(dir, os.path.join(self.baseName + '_Layers',self.baseName + '_A.jpg'))
-        refImage = Image.open(imagePath)
-        # REFERENCE_SCALE = int(650/refImage.size[0]) 
-        if REFERENCE_SCALE > 1:
-            refImage = refImage.resize((refImage.size[0] * REFERENCE_SCALE, refImage.size[1] * REFERENCE_SCALE), Image.Resampling.LANCZOS)
-        draw = ImageDraw.Draw(refImage)
-
-        width, _ = refImage.size
+    def selectSection(self):
+        im = Image.open(self.filename)
+        width, _ = im.size
         ratio = width / self.pixmap.width()
-        for i, roi in enumerate(self.label.ROIList):
-            draw.rectangle([int(roi.x * ratio), int(roi.y * ratio), int((roi.w + roi.x) * ratio), int((roi.h + roi.y) * ratio)], outline="red", width=10)
-            draw.rectangle([int(roi.x * ratio), int(roi.y * ratio), int((roi.x + 12) * ratio), int((roi.y + 12) * ratio)], fill="white", width=10)
-            # font_path = os.path.join(cv2.__path__[0], 'qt','fonts','DejaVuSans.ttf')
-            # font = ImageFont.truetype(font_path, size=5)
-            # draw.text((int(roi.x * ratio) + 15, int(roi.y * ratio) + 15), str(i + 1), font=font, fill="red")
-            draw.text((int(roi.x * ratio) + 15, int(roi.y * ratio) + 15), str(i + 1), fill="red")
+        im.close()
+        self.image.setSection(int(self.label.selectedRegion['y'] * ratio),
+                              int((self.label.selectedRegion['h'] + self.label.selectedRegion['y']) * ratio),
+                              int(self.label.selectedRegion['x'] * ratio),
+                              int((self.label.selectedRegion['w'] + self.label.selectedRegion['x']) * ratio))
+        # print(int(self.label.selectedRegion['y'] * ratio),
+        #       int((self.label.selectedRegion['h'] + self.label.selectedRegion['y']) * ratio),
+        #       int(self.label.selectedRegion['x'] * ratio),
+        #       int((self.label.selectedRegion['w'] + self.label.selectedRegion['x']) * ratio))
+        try:
+            self.canvas.axes.cla()
+            self.canvas.draw()
+        except:
+            pass
+        self.updateVisual()
 
-        # refImage.show()
-        refImage.save(os.path.join(dir, os.path.join(self.baseName + '_Layers', self.baseName + '__Reference.png')))
+    def generateMask(self):
+        self.image.generateMask(int(self.blurKSize.text()), int(self.blurIter.text()), int(self.sobelKSize.text()))
+        self.updateVisual()
 
-        # pic = self.pixmap
-        # painter = QtGui.QPainter(pic)
-        # self.label.scene.render(painter)
-        # painter.setPen(QtCore.Qt.darkRed)
-        # pic.save(os.path.join(dir, os.path.join(self.baseName + '_Layers', self.baseName + '__Reference.png')))
+    def threshold(self):
+        self.image.threshold(int(self.thresholdLineEdit.text()))
+        self.updateVisual()
 
+    def morph(self):
+        self.image.morph(int(self.dilKernelX.text()),int(self.dilKernelY.text()),int(self.dilIter.text()),int(self.eroIter.text()))
+        self.updateVisual()
+    
+    def contour(self):
+        self.image.contour(self.contourCombo.currentIndex())
+        self.updateVisual()
+    
+    def gaussian(self):
+        self.image.gaussian(int(self.gaussianLineEdit.text()))
+        self.updateVisual()
+    
+    def drawLine(self):
+        # print(self.drawLineCombo.currentIndex())
+        self.image.getLine(self.drawLineCombo.currentIndex())
+        try:
+            self.canvas.axes.cla()
+            self.canvas.axes.clf()
+        except:
+            pass
+        overlapped_img = np.zeros(self.image.img.shape)
+        overlapped_img[self.image.lineInfo.upperBound:self.image.lineInfo.lowerBound, 
+                       self.image.lineInfo.leftBound:self.image.lineInfo.rightBound, 1] = self.image.lineInfo.line*255
 
-        if os.path.exists(os.path.join(dir, os.path.join(self.baseName + '_Layers', JSON_FILENAME))):
-            os.remove(os.path.join(dir, os.path.join(self.baseName + '_Layers', JSON_FILENAME)))
+        self.canvas.axes.imshow(self.image.img, alpha=0.7)
+        self.canvas.axes.imshow(overlapped_img, alpha=0.7)
+        self.canvas.draw()
 
-        for i, roi in enumerate(self.label.ROIList):
-            
-            roiDir = os.path.join(dir, self.baseName + '_ROI' + str(i + 1))
-            if not os.path.exists(roiDir):
-                os.mkdir(roiDir)
-                # print(roiDir)
-                srcDir = os.path.dirname(self.filename)
-                # print(srcDir)
-                # psdImg = Image.open(self.psdName)
-                # psdWidth, _ = psdImg.size
-                # psdRatio = psdWidth / self.pixmap.width()
-                
-                for f in os.listdir(srcDir):
-                    if f.endswith(('.jpg')):
-                        imgName= os.path.join(srcDir, f)
-                        im = Image.open(imgName)
-                        width, _ = im.size
-                        ratio = width / self.pixmap.width()
-                        # print(ratio)
-                        # print(roi.x, roi.y, roi.w, roi.h)
-                        # print((int(roi.x * ratio), int(roi.y * ratio), int(roi.w * ratio), int(roi.h * ratio)))
-                        ind = f.find('_')
-                        roiFilename = f[:ind] + '_ROI' + str(i + 1) + f[ind:]
-                        im1 = im.crop((int(roi.x * ratio), int(roi.y * ratio), int((roi.w + roi.x) * ratio), int((roi.h + roi.y) * ratio)))
-                        im1.save(os.path.join(roiDir, roiFilename), format = 'JPEG', dpi = im1.info['dpi'])
-                        # im2 = psdImg.crop((int(roi.x * psdRatio), int(roi.y * psdRatio), int((roi.w + roi.x) * psdRatio), int((roi.h + roi.y) * psdRatio)))
-                        # im2.save(os.path.join(roiDir, self.baseName + '_psd.psd'), format = 'PSD')
+    def saveLine(self):
+        overlapped_img = np.zeros(self.image.img.shape)
+        # print(overlapped_img.shape)
+        overlapped_img = np.dstack((overlapped_img, np.zeros((self.image.img.shape[0], self.image.img.shape[1]))))
+        # print(overlapped_img.shape)
+        overlapped_img[self.image.lineInfo.upperBound:self.image.lineInfo.lowerBound, 
+                       self.image.lineInfo.leftBound:self.image.lineInfo.rightBound, self.lineColorCombo.currentIndex()] = self.image.lineInfo.line*255
+        overlapped_img[self.image.lineInfo.upperBound:self.image.lineInfo.lowerBound, 
+                       self.image.lineInfo.leftBound:self.image.lineInfo.rightBound, 3] = self.image.lineInfo.line*255
+        cv2.imwrite(os.path.join(self.dirname, os.path.join('LineImages', self.nameLineEdit.text() + '.png')), overlapped_img)
 
-            jsonPath = os.path.join(dir, os.path.join(self.baseName + '_Layers', JSON_FILENAME))
-            # print(jsonPath)
-            self.save_region_and_update_json(int(roi.x * ratio), int(roi.y * ratio), int(roi.w * ratio), int(roi.h  * ratio), jsonPath)
-
+        self.image.lineInfo.name = self.nameLineEdit.text()
+        relativeLine = np.zeros((self.image.img.shape[0], self.image.img.shape[1]))
+        relativeLine[self.image.lineInfo.upperBound:self.image.lineInfo.lowerBound, 
+                     self.image.lineInfo.leftBound:self.image.lineInfo.rightBound] = self.image.lineInfo.line
         
+        np.save(os.path.join(self.dirname, os.path.join('LineData', self.nameLineEdit.text() + '.npy')), relativeLine)
 
-        
 
 
 
