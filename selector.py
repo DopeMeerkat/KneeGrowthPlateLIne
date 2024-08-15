@@ -10,9 +10,9 @@ from matplotlib.figure import Figure
 
 
 Image.MAX_IMAGE_PIXELS = 200000000
-IMAGE_HEIGHT = 1100
-IMAGE_WIDTH = 800
-imageNames = ['cfo','ap','dapi', 'trap', 'ac', 'cal', 'am']
+IMAGE_HEIGHT = 1200
+IMAGE_WIDTH = 1000
+imageNames = ['cfo','ap', 'ap_low','dapi', 'trap', 'ac', 'cal', 'am', 'sfo']
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -109,11 +109,11 @@ class ImageLoader(QtWidgets.QWidget):
         self.sectionButton = QtWidgets.QPushButton('Select Section', self.frame)
         controlLayout.addWidget(self.sectionButton, 1, 1, 1, 1)
 
+        self.rgbButton = QtWidgets.QPushButton('Filter RGB', self.frame)
+        controlLayout.addWidget(self.rgbButton, 2, 1, 1, 1)
 
         maskFrame = QtWidgets.QFrame(self.frame)
         maskLayout = QtWidgets.QGridLayout(maskFrame)
-
-
         self.blurKSizeText = QtWidgets.QLabel(self.frame)
         self.blurKSizeText.setText('Gaussian Blur Kernel Size')
         maskLayout.addWidget(self.blurKSizeText, 0, 0)
@@ -138,17 +138,17 @@ class ImageLoader(QtWidgets.QWidget):
         self.sobelKSize.setText('3')
         maskLayout.addWidget(self.sobelKSize, 1, 2, 2, 1)
 
-        controlLayout.addWidget(maskFrame, 2, 0, 1, 1)
+        controlLayout.addWidget(maskFrame, 3, 0, 1, 1)
 
         self.maskButton = QtWidgets.QPushButton('Generate Mask', self.frame)
-        controlLayout.addWidget(self.maskButton, 2, 1, 1, 1)
+        controlLayout.addWidget(self.maskButton, 3, 1, 1, 1)
 
         self.thresholdLineEdit = QtWidgets.QLineEdit(self.frame)
-        self.thresholdLineEdit.setText('200')
-        controlLayout.addWidget(self.thresholdLineEdit, 3, 0, 1, 1)
+        self.thresholdLineEdit.setText('30')
+        controlLayout.addWidget(self.thresholdLineEdit, 4, 0, 1, 1)
 
         self.thresholdButton = QtWidgets.QPushButton('Threshold', self.frame)
-        controlLayout.addWidget(self.thresholdButton, 3, 1, 1, 1)
+        controlLayout.addWidget(self.thresholdButton, 4, 1, 1, 1)
 
 
         DEFrame = QtWidgets.QFrame(self.frame)
@@ -167,59 +167,59 @@ class ImageLoader(QtWidgets.QWidget):
         DELayout.addWidget(self.eroIterText, 0, 3)
         
         self.dilKernelX = QtWidgets.QLineEdit(self.frame)
-        self.dilKernelX.setText('7')
+        self.dilKernelX.setText('5')
         DELayout.addWidget(self.dilKernelX, 1, 0, 2, 1)
         self.dilKernelY = QtWidgets.QLineEdit(self.frame)
-        self.dilKernelY.setText('4')
+        self.dilKernelY.setText('5')
         DELayout.addWidget(self.dilKernelY, 1, 1, 2, 1)
         self.dilIter = QtWidgets.QLineEdit(self.frame)
         self.dilIter.setText('3')
         DELayout.addWidget(self.dilIter, 1, 2, 2, 1)
         self.eroIter = QtWidgets.QLineEdit(self.frame)
-        self.eroIter.setText('2')
+        self.eroIter.setText('3')
         DELayout.addWidget(self.eroIter, 1, 3, 2, 1)
-        controlLayout.addWidget(DEFrame, 4, 0, 1, 1)
+        controlLayout.addWidget(DEFrame, 5, 0, 1, 1)
 
         self.morphButton = QtWidgets.QPushButton('Dilation/Erosion', self.frame)
-        controlLayout.addWidget(self.morphButton, 4, 1, 1, 1)
+        controlLayout.addWidget(self.morphButton, 5, 1, 1, 1)
 
         self.contourCombo = QtWidgets.QComboBox(self.frame)
         self.contourCombo.addItems(['Largest', 'Second Largest'])
-        controlLayout.addWidget(self.contourCombo, 5, 0, 1, 1)
+        controlLayout.addWidget(self.contourCombo, 6, 0, 1, 1)
 
         self.contourButton = QtWidgets.QPushButton('Countour', self.frame)
-        controlLayout.addWidget(self.contourButton, 5, 1, 1, 1)
+        controlLayout.addWidget(self.contourButton, 6, 1, 1, 1)
 
         self.gaussianLineEdit = QtWidgets.QLineEdit(self.frame)
         self.gaussianLineEdit.setText('30')
-        controlLayout.addWidget(self.gaussianLineEdit, 6, 0, 1, 1)
+        controlLayout.addWidget(self.gaussianLineEdit, 7, 0, 1, 1)
 
         self.gaussianButton = QtWidgets.QPushButton('Gaussian', self.frame)
-        controlLayout.addWidget(self.gaussianButton, 6, 1, 1, 1)
+        controlLayout.addWidget(self.gaussianButton, 7, 1, 1, 1)
 
         self.drawLineCombo = QtWidgets.QComboBox(self.frame)
         self.drawLineCombo.addItems(['Up', 'Down'])
-        controlLayout.addWidget(self.drawLineCombo, 7, 0, 1, 1)
+        controlLayout.addWidget(self.drawLineCombo, 8, 0, 1, 1)
 
         self.drawLineButton = QtWidgets.QPushButton('Draw Line', self.frame)
-        controlLayout.addWidget(self.drawLineButton, 7, 1, 1, 1)
+        controlLayout.addWidget(self.drawLineButton, 8, 1, 1, 1)
 
 
         lineInfoFrame = QtWidgets.QFrame(self.frame)
         lineInfoLayout = QtWidgets.QGridLayout(lineInfoFrame)
 
         self.lineColorCombo = QtWidgets.QComboBox(self.frame)
-        self.lineColorCombo.addItems(['Red', 'Green', 'Blue'])
+        self.lineColorCombo.addItems(['Blue', 'Green', 'Red'])
         lineInfoLayout.addWidget(self.lineColorCombo, 0, 0, 1, 1)
 
         self.nameLineEdit = QtWidgets.QLineEdit(self.frame)
         self.nameLineEdit.setText('Name of Line')
         lineInfoLayout.addWidget(self.nameLineEdit, 0, 1, 1, 3)
-        controlLayout.addWidget(lineInfoFrame, 8, 0, 1, 1)
+        controlLayout.addWidget(lineInfoFrame, 9, 0, 1, 1)
 
 
         self.saveLineButton = QtWidgets.QPushButton('Save Line', self.frame)
-        controlLayout.addWidget(self.saveLineButton, 8, 1, 1, 1)
+        controlLayout.addWidget(self.saveLineButton, 9, 1, 1, 1)
 
         mainLayout.addWidget(self.frame, 1, 4, 1, 1)
 
@@ -233,7 +233,7 @@ class ImageLoader(QtWidgets.QWidget):
 
         self.loadImageButton.clicked.connect(self.loadImage)
         self.nextImageButton.clicked.connect(self.nextImage)
-        # self.clearButton.clicked.connect(self.clearScene)
+        self.rgbButton.clicked.connect(self.filterRGB)
         self.sectionButton.clicked.connect(self.selectSection)
         self.maskButton.clicked.connect(self.generateMask)
         self.thresholdButton.clicked.connect(self.threshold)
@@ -358,6 +358,10 @@ class ImageLoader(QtWidgets.QWidget):
             self.canvas.draw()
         except:
             pass
+        self.updateVisual()
+
+    def filterRGB(self):
+        self.image.filterRGB()
         self.updateVisual()
 
     def generateMask(self):

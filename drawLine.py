@@ -23,6 +23,7 @@ class LineImage:
     def __init__(self, path2img):
         self.img = np.array(plt.imread(path2img))
         self.overlapped_img = np.zeros(self.img.shape)
+        
         self.grayImg = cv2.cvtColor(self.img, cv2.COLOR_RGB2GRAY)
         
         self.tempImg = self.grayImg
@@ -31,6 +32,17 @@ class LineImage:
 
         # current line
         self.lineInfo = Line()
+
+    def filterRGB(self):
+        # print('rgb')
+        lower_red = np.array([160,0,0])
+        upper_red = np.array([182,100,100])
+        rgbImg = cv2.inRange(self.img, lower_red, upper_red)
+        self.tempImg = rgbImg[self.lineInfo.upperBound:self.lineInfo.lowerBound, self.lineInfo.leftBound:self.lineInfo.rightBound]
+        # plt.imshow(self.grayImg)
+        # plt.show()
+
+
        
 
     def setSection(self, upperBound, lowerBound, leftBound, rightBound):
@@ -63,11 +75,21 @@ class LineImage:
         self.tempImg = edges
 
     def morph(self, dilKernelX, dilKernelY, dilIter, eroIter):
-        # self.lineInfo.dilKernel = dilKernel
-        # self.lineInfo.eroKernel = eroKernel
-        # self.lineInfo.dilIter = dilIter
-        # self.lineInfo.eroIter = eroIter
-        kernel1 = np.ones((dilKernelY,dilKernelX), np.uint8)
+        # kernel1 = np.ones((dilKernelY,dilKernelX), np.uint8)
+        # kernel1[0, 0] = 0
+        # kernel1[dilKernelY - 1, 0] = 0
+        # kernel1[0, dilKernelX - 1] = 0
+        # kernel1[dilKernelY - 1, dilKernelX - 1] = 0
+
+
+        # kernel1 = np.zeros((dilKernelY,dilKernelX), np.uint8)
+        # kernel1[int(dilKernelY/2), :] = 1
+        # kernel1[:, int(dilKernelX/2)] = 1
+
+        kernel1 = np.zeros((dilKernelY,dilKernelX), np.uint8)
+        kernel1[int(dilKernelY/2)-1:int((dilKernelY+1)/2)+1, :] = 1
+        kernel1[:, int(dilKernelX/2)-1:int((dilKernelX+1)/2)+1] = 1
+
         kernel2 = np.ones((2,2), np.uint8)
         dilated_image = cv2.dilate(self.tempImg, kernel1, iterations=dilIter)
         closed_img = cv2.erode(dilated_image, kernel2, iterations=eroIter)
