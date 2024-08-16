@@ -85,22 +85,24 @@ class LineImage:
         # kernel1 = np.zeros((dilKernelY,dilKernelX), np.uint8)
         # kernel1[int(dilKernelY/2), :] = 1
         # kernel1[:, int(dilKernelX/2)] = 1
+        try:
+            kernel1 = np.zeros((dilKernelY,dilKernelX), np.uint8)
+            kernel1[int(dilKernelY/2)-1:int((dilKernelY+1)/2)+1, :] = 1
+            kernel1[:, int(dilKernelX/2)-1:int((dilKernelX+1)/2)+1] = 1
 
-        kernel1 = np.zeros((dilKernelY,dilKernelX), np.uint8)
-        kernel1[int(dilKernelY/2)-1:int((dilKernelY+1)/2)+1, :] = 1
-        kernel1[:, int(dilKernelX/2)-1:int((dilKernelX+1)/2)+1] = 1
+            kernel2 = np.ones((2,2), np.uint8)
+            dilated_image = cv2.dilate(self.tempImg, kernel1, iterations=dilIter)
+            closed_img = cv2.erode(dilated_image, kernel2, iterations=eroIter)
 
-        kernel2 = np.ones((2,2), np.uint8)
-        dilated_image = cv2.dilate(self.tempImg, kernel1, iterations=dilIter)
-        closed_img = cv2.erode(dilated_image, kernel2, iterations=eroIter)
+            # Close the object
+            idx_img=sorted(np.where(closed_img==255)[1])
+            left_idx = idx_img[0]
+            right_idx = idx_img[-1]
+            closed_img[0, left_idx:right_idx] = 255
 
-        # Close the object
-        idx_img=sorted(np.where(closed_img==255)[1])
-        left_idx = idx_img[0]
-        right_idx = idx_img[-1]
-        closed_img[0, left_idx:right_idx] = 255
-
-        self.tempImg = closed_img
+            self.tempImg = closed_img
+        except:
+            pass
 
     def contour(self, i):
         contours, _ = cv2.findContours(self.tempImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

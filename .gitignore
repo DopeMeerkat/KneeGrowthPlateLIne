@@ -1,3 +1,4 @@
 .DS_Store
 CCC_*
 __pycache__
+tests

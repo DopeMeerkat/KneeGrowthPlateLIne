@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 Image.MAX_IMAGE_PIXELS = 200000000
 IMAGE_HEIGHT = 1200
 IMAGE_WIDTH = 1000
-imageNames = ['cfo','ap', 'ap_low','dapi', 'trap', 'ac', 'cal', 'am', 'sfo']
+# imageNames = ['cfo','ap', 'ap_low','dapi', 'trap', 'ac', 'cal', 'am', 'sfo']
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -261,15 +261,15 @@ class ImageLoader(QtWidgets.QWidget):
         self.baseName = os.path.basename(self.filename)[:-4]
         self.dirname = os.path.dirname(self.filename) 
         layersDir = os.path.join(self.dirname, self.baseName + '_Layers')
-        otherDir = os.path.join(layersDir, 'OtherImages')
+        # otherDir = os.path.join(layersDir, 'OtherImages')
         lineDataDir = os.path.join(layersDir, 'LineData')
         lineImageDir = os.path.join(layersDir, 'LineImages')
         self.dirname = layersDir
 
         if not os.path.exists(layersDir) and layersDir != '_Layers':
             os.mkdir(layersDir)
-            if not os.path.exists(otherDir):
-                os.mkdir(otherDir)
+            # if not os.path.exists(otherDir):
+            #     os.mkdir(otherDir)
             if not os.path.exists(lineDataDir):
                 os.mkdir(lineDataDir)
             if not os.path.exists(lineImageDir):
@@ -279,17 +279,17 @@ class ImageLoader(QtWidgets.QWidget):
             # psd.composite().convert('RGB').save(os.path.join(layersDir, newFilename), format = 'JPEG', dpi = (300,300))
             for layer in psd:
                 # print(layer.name)
-                if layer.name in imageNames:
-                    layer_image = layer.composite()
-                    layer_image = layer_image.convert('RGB')
-                    layer_image.save(os.path.join(layersDir, self.baseName + '_%s.jpg' % layer.name), format = 'JPEG', dpi = (300,300))
+                # if layer.name in imageNames:
+                layer_image = layer.composite()
+                layer_image = layer_image.convert('RGB')
+                layer_image.save(os.path.join(layersDir, self.baseName + '_%s.jpg' % layer.name), format = 'JPEG', dpi = (300,300))
 
-                else:
-                    layer_image = layer.composite()
-                    layer_image = layer_image.convert('RGB')
-                    layer_image.save(os.path.join(otherDir, self.baseName + '_%s.jpg' % layer.name), format = 'JPEG', dpi = (300,300))
+                # else:
+                #     layer_image = layer.composite()
+                #     layer_image = layer_image.convert('RGB')
+                #     layer_image.save(os.path.join(otherDir, self.baseName + '_%s.jpg' % layer.name), format = 'JPEG', dpi = (300,300))
 
-        self.fileList = [os.path.join(layersDir, f) for f in os.listdir(layersDir) if os.path.isfile(os.path.join(layersDir, f)) and f != '.DS_Store']
+        self.fileList = [os.path.join(layersDir, f) for f in os.listdir(layersDir) if f.endswith('.jpg')]
 
         self.fileList.sort()
         self.dirIterator = iter(self.fileList)
