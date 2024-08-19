@@ -33,10 +33,10 @@ class LineImage:
         # current line
         self.lineInfo = Line()
 
-    def filterRGB(self):
+    def filterRGB(self, lower = 160, upper = 182):
         # print('rgb')
-        lower_red = np.array([160,0,0])
-        upper_red = np.array([182,100,100])
+        lower_red = np.array([lower,0,0])
+        upper_red = np.array([upper,100,100])
         rgbImg = cv2.inRange(self.img, lower_red, upper_red)
         self.tempImg = rgbImg[self.lineInfo.upperBound:self.lineInfo.lowerBound, self.lineInfo.leftBound:self.lineInfo.rightBound]
         # plt.imshow(self.grayImg)

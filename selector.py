@@ -95,6 +95,8 @@ class ImageLoader(QtWidgets.QWidget):
         # self.saveAllROIButton = QtWidgets.QPushButton('Save and Crop All')
         # mainLayout.addWidget(self.saveAllROIButton, 0, 3, 1, 1)
 
+        self.prevImageButton = QtWidgets.QPushButton('<')
+        mainLayout.addWidget(self.prevImageButton, 0, 1)
         self.nextImageButton = QtWidgets.QPushButton('>')
         mainLayout.addWidget(self.nextImageButton, 0, 2)
 
@@ -108,6 +110,19 @@ class ImageLoader(QtWidgets.QWidget):
 
         self.sectionButton = QtWidgets.QPushButton('Select Section', self.frame)
         controlLayout.addWidget(self.sectionButton, 1, 1, 1, 1)
+
+        rgbFrame = QtWidgets.QFrame(self.frame)
+        rgbLayout = QtWidgets.QGridLayout(rgbFrame)
+
+        self.lowerRedLineEdit = QtWidgets.QLineEdit(self.frame)
+        self.lowerRedLineEdit.setText('160')
+        rgbLayout.addWidget(self.lowerRedLineEdit, 0, 0, 1, 1)
+
+        self.upperRedLineEdit = QtWidgets.QLineEdit(self.frame)
+        self.upperRedLineEdit.setText('182')
+        rgbLayout.addWidget(self.upperRedLineEdit, 0, 1, 1, 1)
+
+        controlLayout.addWidget(rgbFrame, 2, 0, 1, 1)
 
         self.rgbButton = QtWidgets.QPushButton('Filter RGB', self.frame)
         controlLayout.addWidget(self.rgbButton, 2, 1, 1, 1)
@@ -232,6 +247,7 @@ class ImageLoader(QtWidgets.QWidget):
 
 
         self.loadImageButton.clicked.connect(self.loadImage)
+        self.prevImageButton.clicked.connect(self.prevImage)
         self.nextImageButton.clicked.connect(self.nextImage)
         self.rgbButton.clicked.connect(self.filterRGB)
         self.sectionButton.clicked.connect(self.selectSection)
@@ -328,6 +344,30 @@ class ImageLoader(QtWidgets.QWidget):
             # no file list found, load an image
             self.loadImage()
 
+
+    def prevImage(self):
+        if self.fileList:
+            try:
+                for i in range(1, len(self.fileList)):
+                    self.filename = next(self.dirIterator)
+                self.setWindowTitle(os.path.basename(self.filename)[:-4])
+                self.pixmap = QtGui.QPixmap(self.filename).scaled(self.label.size(), 
+                    QtCore.Qt.KeepAspectRatio)
+                if self.pixmap.isNull():
+                    self.fileList.remove(self.filename)
+                    self.nextImage()
+                else:
+                    self.clearScene()
+
+                self.image = LineImage(self.filename)
+            except:
+                # the iterator has finished, restart it
+                self.dirIterator = iter(self.fileList)
+                self.nextImage()
+        else:
+            # no file list found, load an image
+            self.loadImage()
+
     def clearScene(self):
         self.label.scene.clear()
         self.label.graphicsPixmapItem = QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap(self.pixmap))
@@ -361,7 +401,7 @@ class ImageLoader(QtWidgets.QWidget):
         self.updateVisual()
 
     def filterRGB(self):
-        self.image.filterRGB()
+        self.image.filterRGB(int(self.lowerRedLineEdit.text()), int(self.upperRedLineEdit.text()))
         self.updateVisual()
 
     def generateMask(self):
