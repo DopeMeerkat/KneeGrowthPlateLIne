@@ -1,8 +1,17 @@
 from analysis import *
 import csv
 
+
+import tkinter as tk
+from tkinter import filedialog
+
+
 cwd = os.getcwd()
-dirName = os.path.join(cwd, 'tests/CCC_K10_FL1_s2_Layers')
+root = tk.Tk()
+root.withdraw()
+
+sourceDir = filedialog.askdirectory(initialdir=os.getcwd(), title='Select Folder')
+dirName = sourceDir
 baseName = os.path.basename(dirName)[:-7]
 csvPath = os.path.join(dirName, baseName + '.csv')
 
