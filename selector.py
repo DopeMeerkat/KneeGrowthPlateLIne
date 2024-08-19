@@ -1,5 +1,6 @@
 import sys
 import os
+import itertools
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psd_tools import PSDImage
 from PIL import Image
@@ -347,23 +348,19 @@ class ImageLoader(QtWidgets.QWidget):
 
     def prevImage(self):
         if self.fileList:
-            try:
-                for i in range(1, len(self.fileList)):
+            for _ in itertools.repeat(None, len(self.fileList) - 1):
+                try:
                     self.filename = next(self.dirIterator)
-                self.setWindowTitle(os.path.basename(self.filename)[:-4])
-                self.pixmap = QtGui.QPixmap(self.filename).scaled(self.label.size(), 
-                    QtCore.Qt.KeepAspectRatio)
-                if self.pixmap.isNull():
-                    self.fileList.remove(self.filename)
+                except:
+                    # the iterator has finished, restart it
+                    self.dirIterator = iter(self.fileList)
                     self.nextImage()
-                else:
-                    self.clearScene()
+            self.setWindowTitle(os.path.basename(self.filename)[:-4])
+            self.pixmap = QtGui.QPixmap(self.filename).scaled(self.label.size(), 
+                QtCore.Qt.KeepAspectRatio)
 
-                self.image = LineImage(self.filename)
-            except:
-                # the iterator has finished, restart it
-                self.dirIterator = iter(self.fileList)
-                self.nextImage()
+            self.image = LineImage(self.filename)
+            self.clearScene()
         else:
             # no file list found, load an image
             self.loadImage()
