@@ -15,7 +15,7 @@ if not os.path.exists(csvPath):
                       'Columnar Zone','','','','','','','','','','',
                       'Prehypertrophyic Zone','','','','','','','','','','',
                       'Hypertrophic Zone','','','','','','','','','','',
-                      'Total Metaphysis Zone','','','','','','','','','','',
+                      'Total Metaphysis Zone','','','','','','','','',
                       'Preosogenic Metaphyseal Zone','','','','','','','','','','',
                       'Osteogenic Metaphyseal Zone','','','','','','','','','','',
                       ]
@@ -26,7 +26,7 @@ if not os.path.exists(csvPath):
                   'Borders','','','','Vertical Distance','','Width', 'Area','','% Total', '',
                   'Borders','','','','Vertical Distance','','Width', 'Area','','% Total', '',
                   'Borders','','','','Vertical Distance','','Width', 'Area','','% Total', '',
-                  'Borders','','','','Vertical Distance','','Width', 'Area','','% Total', '',
+                  'Borders','','','','Vertical Distance','','Width', 'Area','',
                   'Borders','','','','Vertical Distance','','Width', 'Area','','% Total', '',
                   'Borders','','','','Vertical Distance','','Width', 'Area','','% Total', '',
                   ]
@@ -37,7 +37,7 @@ if not os.path.exists(csvPath):
                    'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD','Mean','SD',
                    'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD','Mean','SD',
                    'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD','Mean','SD',
-                   'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD','Mean','SD',
+                   'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD',
                    'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD','Mean','SD',
                    'Upper Line', 'Lower Line', 'Left Side', 'Right Side', 'Mean', 'SD','','Mean','SD','Mean','SD',
                    ]
@@ -76,19 +76,21 @@ with open(csvPath, 'a') as csvfile:
     
     PreMetMean, PreMetSD, PreMetStart, PreMetEnd = getArea(os.path.join(dirName, os.path.join('LineData', 'DPUCL.npy')),
                                                             os.path.join(dirName, os.path.join('LineData', 'C5MUL.npy')),
-                                                            os.path.join(recordsDir, 'PreosteogenicMetaphysial.png'))
+                                                            os.path.join(recordsDir, 'PreosteogenicMetaphyseal.png'))
     
     OstMetMean, OstMetSD, OstMetStart, OstMetEnd = getArea(os.path.join(dirName, os.path.join('LineData', 'C5MUL.npy')),
                                                             os.path.join(dirName, os.path.join('LineData', 'DPUML.npy')),
-                                                            os.path.join(recordsDir, 'OsteogenicMetaPhyseal.png'))
+                                                            os.path.join(recordsDir, 'OsteogenicMetaphyseal.png'))
+    
+    sInd = baseName.find('_s')
 
     rowData = [
-        '', # Sample #
-        '', # Sample ID
-        '', # Genotype
-        '', # Sex
+        baseName[sInd + 2], # Sample #
+        baseName[:sInd], # Sample ID
+        baseName[:3], # Genotype
+        baseName[sInd - 3], # Sex
         '', # Age
-        '', # Level
+        baseName[sInd - 1], # Level
         'SOGUL', # Upper Line - Total Growth Plate
         'DPUCL', # Lower Line
         TotalGPStart, # Left Side
@@ -151,8 +153,6 @@ with open(csvPath, 'a') as csvfile:
         MetaphysisEnd - MetaphysisStart, # Width
         (MetaphysisEnd - MetaphysisStart) * MetaphysisMean, # Area Mean
         (MetaphysisEnd - MetaphysisStart) * MetaphysisSD, # Area SD
-        MetaphysisMean/TotalGPMean, # % Total Mean
-        MetaphysisSD/TotalGPSD, # % Total SD
         'DPUCL', # Upper Line - Preosogenic Metaphyseal Zone
         'C5MUL', # Lower Line
         PreMetStart, # Left Side
@@ -162,8 +162,8 @@ with open(csvPath, 'a') as csvfile:
         PreMetEnd - PreMetStart, # Width
         (PreMetEnd - PreMetStart) * PreMetMean, # Area Mean
         (PreMetEnd - PreMetStart) * PreMetSD, # Area SD
-        PreMetMean/TotalGPMean, # % Total Mean
-        PreMetSD/TotalGPSD, # % Total SD
+        PreMetMean/MetaphysisMean, # % Total Mean
+        PreMetSD/MetaphysisSD, # % Total SD
         'C5MUL', # Upper Line - Osteogenic Metaphyseal Zone
         'DPUML', # Lower Line
         OstMetStart, # Left Side
@@ -173,7 +173,7 @@ with open(csvPath, 'a') as csvfile:
         OstMetEnd - OstMetStart, # Width
         (OstMetEnd - OstMetStart) * OstMetMean, # Area Mean
         (OstMetEnd - OstMetStart) * OstMetSD, # Area SD
-        OstMetMean/TotalGPMean, # % Total Mean
-        OstMetSD/TotalGPSD, # % Total SD
+        OstMetMean/MetaphysisMean, # % Total Mean
+        OstMetSD/MetaphysisSD, # % Total SD
     ]
     writer.writerow(rowData)

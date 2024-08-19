@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 
 
 
-def getArea(line2Path, line1Path, savePath = None):
+def getArea(line2Path, line1Path, savePath = None, customStart = None, customEnd = None):
     line1 = np.load(line1Path)
     line2 = np.load(line2Path)
 
@@ -25,15 +25,18 @@ def getArea(line2Path, line1Path, savePath = None):
         else:
             y[i] = 0
 
-    # print(type(y))
-    # y = y[np.where(y != 0)]
-    # y = y[300:-300]
     lines = line1+line2
     y[y==0] = np.nan
-    yFinite = np.argwhere(np.isfinite(y))
-    # print(yFinite[0][0], yFinite[-1][0])
+    yFinite = np.argwhere(np.isfinite(y)) #get indexes of non NaN to find endpoints of line
+
     start = yFinite[0][0] + 300
     end = yFinite[-1][0] - 300
+
+    if customStart != None:
+        start = customStart
+    if customEnd != None:
+        end = customEnd
+
     y[:start] = np.nan
     y[end:] = np.nan
     mean =  y[~np.isnan(y)].mean()
@@ -90,8 +93,8 @@ def getAvg(line1Path, line2Path, savePath=None): #layers path
         im = np.zeros((line1.shape[0], line1.shape[1],4))
         im[:, :, 0] = y*255
         im[:, :, 3] = y*255
-        cv2.imwrite(os.path.join(savePath, os.path.join('LineImages', 'C5GLL_GZAP_Avg.png'), im))
-        np.save(os.path.join(savePath, os.path.join('LineData', 'C5GLL_GZAP_Avg.npy'), y))
+        cv2.imwrite(os.path.join(savePath, os.path.join('LineImages', os.path.basename(line2Path) + '_' + os.path.basename(line1Path)+ '_Avg.png'), im))
+        np.save(os.path.join(savePath, os.path.join('LineData', os.path.basename(line2Path) + '_' + os.path.basename(line1Path)+ '_Avg.npy'), y))
 
 
 # cwd = os.getcwd()
